@@ -1,80 +1,70 @@
 #include <Arduino.h>
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
 #include <Wire.h>
-#include <DeafProject_inferencing.h> 
 
-#define I2C_SDA 8 
-#define I2C_SCL 9
-
-Adafruit_MPU6050 mpu;
+// Pins
+const uint8_t thumbPin  = 1;
+const uint8_t indexPin  = 2;
+const uint8_t middlePin = 3;
+const uint8_t ringPin   = 4;
+const uint8_t pinkyPin  = 5;
+#define SDA_PIN 8
+#define SCL_PIN 9
+#define MPU_ADDR 0x68
 
 void setup() {
-    Serial.begin(115200);
-    while (!Serial); 
-    delay(2000); // Wait for serial and power to stabilize
-    Serial.println("--- GLOVE AI: BOOTING ---");
+  Serial.begin(115200);
+  
+  // Start I2C manually
+  Wire.begin(SDA_PIN, SCL_PIN, 100000); 
+  delay(500);
 
-    Wire.begin(I2C_SDA, I2C_SCL);
-
-    // This is the fix. We manually pass 0x68 but the library 
-    // will now treat your 0x70 chip as a standard MPU.
-    if (!mpu.begin(0x68, &Wire)) { 
-        Serial.println("Warning: Library reported failure, but continuing...");
-    }
-
-    Serial.println("MPU WOKEN UP!");
-
-    // Set configuration manually to ensure it takes
-    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-
-    for(int i=1; i<=5; i++) {
-        pinMode(i, INPUT);
-    }
-    Serial.println("SYSTEM READY. START SIGNING.");
+  // Wake up MPU6050 manually (Power Management Register)
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x6B); 
+  Wire.write(0);    
+  if (Wire.endTransmission() != 0) {
+    Serial.println("CRITICAL: MPU6050 Not Responding on 8/9!");
+    while(1);
+  }
+  
+  Serial.println("ax,ay,az,gx,gy,gz,thumb,index,middle,ring,pinky");
 }
 
 void loop() {
-    float buffer[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
+  // 1. Get Raw MPU Data
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B); 
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_ADDR, 14);
 
-    for (size_t ix = 0; ix < EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE; ix += 11) {
-        uint64_t next_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
+  // Read Accelerometer (High + Low bytes)
+  int16_t ax = Wire.read()<<8 | Wire.read();
+  int16_t ay = Wire.read()<<8 | Wire.read();
+  int16_t az = Wire.read()<<8 | Wire.read();
+  Wire.read()<<8 | Wire.read(); // Skip Temperature
+  int16_t gx = Wire.read()<<8 | Wire.read();
+  int16_t gy = Wire.read()<<8 | Wire.read();
+  int16_t gz = Wire.read()<<8 | Wire.read();
 
-        sensors_event_t a, g, temp;
-        
-        // Reading data from the 0x70 chip
-        mpu.getEvent(&a, &g, &temp);
+  // 2. Get Finger Data
+  int t = analogRead(thumbPin);
+  int i = analogRead(indexPin);
+  int m = analogRead(middlePin);
+  int r = analogRead(ringPin);
+  int p = analogRead(pinkyPin);
 
-        buffer[ix + 0] = a.acceleration.x;
-        buffer[ix + 1] = a.acceleration.y;
-        buffer[ix + 2] = a.acceleration.z;
-        buffer[ix + 3] = g.gyro.x;
-        buffer[ix + 4] = g.gyro.y;
-        buffer[ix + 5] = g.gyro.z;
-        
-        // Hall Sensors on pins 1-5
-        buffer[ix + 6] = (float)analogRead(1);
-        buffer[ix + 7] = (float)analogRead(2);
-        buffer[ix + 8] = (float)analogRead(3);
-        buffer[ix + 9] = (float)analogRead(4);
-        buffer[ix + 10] = (float)analogRead(5);
+  // 3. Print in CSV format for Edge Impulse
+  Serial.print(ax); Serial.print(",");
+  Serial.print(ay); Serial.print(",");
+  Serial.print(az); Serial.print(",");
+  Serial.print(gx); Serial.print(",");
+  Serial.print(gy); Serial.print(",");
+  Serial.print(gz); Serial.print(",");
+  Serial.print(t);  Serial.print(",");
+  Serial.print(i);  Serial.print(",");
+  Serial.print(m);  Serial.print(",");
+  Serial.print(r);  Serial.print(",");
+  Serial.println(p);
 
-        while (micros() < next_tick);
-    }
-
-    signal_t signal;
-    numpy::signal_from_buffer(buffer, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
-
-    ei_impulse_result_t result = { 0 };
-    if (run_classifier(&signal, &result, false) == EI_IMPULSE_OK) {
-        for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
-            if (result.classification[ix].value > 0.85) {
-                Serial.printf("SIGN: %s (%d%%)\n", 
-                              result.classification[ix].label, 
-                              (int)(result.classification[ix].value * 100));
-            }
-        }
-    }
+  delay(20); // 50Hz Sampling
 }
