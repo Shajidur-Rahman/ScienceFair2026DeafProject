@@ -2,7 +2,7 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
-#include <DeafProject_inferencing.h> 
+#include <final_deaf_inferencing.h> 
 
 #define I2C_SDA 8 
 #define I2C_SCL 9
@@ -12,20 +12,25 @@ Adafruit_MPU6050 mpu;
 void setup() {
     Serial.begin(115200);
     while (!Serial); 
-    delay(2000); 
+    delay(2000); // Wait for serial and power to stabilize
     Serial.println("--- GLOVE AI: BOOTING ---");
 
     Wire.begin(I2C_SDA, I2C_SCL);
 
+    // This is the fix. We manually pass 0x68 but the library 
+    // will now treat your 0x70 chip as a standard MPU.
     if (!mpu.begin(0x68, &Wire)) { 
         Serial.println("Warning: Library reported failure, but continuing...");
     }
 
+    Serial.println("MPU WOKEN UP!");
+
+    // Set configuration manually to ensure it takes
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu.setGyroRange(MPU6050_RANGE_500_DEG);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-    for(int i = 1; i <= 5; i++) {
+    for(int i=1; i<=5; i++) {
         pinMode(i, INPUT);
     }
     Serial.println("SYSTEM READY. START SIGNING.");
@@ -38,26 +43,23 @@ void loop() {
         uint64_t next_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
 
         sensors_event_t a, g, temp;
+        
+        // Reading data from the 0x70 chip
         mpu.getEvent(&a, &g, &temp);
 
-        // --- THE "BEAST MODE" DATA MAPPING ---
-        // Match the order of your Edge Impulse "Axes" list exactly.
-        // Assuming: accX, accY, accZ, gyrX, gyrY, gyrZ, hall1-5
-        
-        buffer[ix + 0] = a.acceleration.x; 
+        buffer[ix + 0] = a.acceleration.x;
         buffer[ix + 1] = a.acceleration.y;
         buffer[ix + 2] = a.acceleration.z;
         buffer[ix + 3] = g.gyro.x;
         buffer[ix + 4] = g.gyro.y;
         buffer[ix + 5] = g.gyro.z;
         
-        // Use map or simple division to ensure Hall sensors hit 0.0 to 1.0
-        // If your sensors range from 1800 to 3500, we normalize them here:
-        buffer[ix + 6] = (float)analogRead(1) / 4095.0;
-        buffer[ix + 7] = (float)analogRead(2) / 4095.0;
-        buffer[ix + 8] = (float)analogRead(3) / 4095.0;
-        buffer[ix + 9] = (float)analogRead(4) / 4095.0;
-        buffer[ix + 10] = (float)analogRead(5) / 4095.0;
+        // Hall Sensors on pins 1-5
+        buffer[ix + 6] = (float)analogRead(1);
+        buffer[ix + 7] = (float)analogRead(2);
+        buffer[ix + 8] = (float)analogRead(3);
+        buffer[ix + 9] = (float)analogRead(4);
+        buffer[ix + 10] = (float)analogRead(5);
 
         while (micros() < next_tick);
     }
@@ -67,18 +69,12 @@ void loop() {
 
     ei_impulse_result_t result = { 0 };
     if (run_classifier(&signal, &result, false) == EI_IMPULSE_OK) {
-        bool found = false;
         for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
-            // Check confidence > 70% and ignore 'idle'
-            if (result.classification[ix].value > 0.70) {
-                if (String(result.classification[ix].label) != "idle") {
-                    Serial.printf("SIGN: %s (%d%%)\n", 
-                                  result.classification[ix].label, 
-                                  (int)(result.classification[ix].value * 100));
-                    found = true;
-                }
+            if (result.classification[ix].value > 0.85) {
+                Serial.printf("SIGN: %s (%d%%)\n", 
+                              result.classification[ix].label, 
+                              (int)(result.classification[ix].value * 100));
             }
         }
-        // If the AI is only seeing 'idle', it won't print anything because of the filter above.
     }
 }
