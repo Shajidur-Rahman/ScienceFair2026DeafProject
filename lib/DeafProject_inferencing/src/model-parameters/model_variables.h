@@ -46,7 +46,7 @@
 #include "edge-impulse-sdk/classifier/inferencing_engines/engines.h"
 #include "edge-impulse-sdk/classifier/postprocessing/ei_postprocessing_common.h"
 
-const char* ei_classifier_inferencing_categories_958037_1[] = { "help", "idle", "salam" };
+const char* ei_classifier_inferencing_categories_958037_1[] = { "food", "help", "idle", "no", "salam", "yes" };
 
 EI_CLASSIFIER_DSP_AXES_INDEX_TYPE ei_dsp_config_958037_2_axes[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 const uint32_t ei_dsp_config_958037_2_axes_size = 11;
@@ -150,17 +150,17 @@ const ei_impulse_t impulse_958037_1 = {
     .project_name = "DeafProject",
     .impulse_id = 1,
     .impulse_name = "Impulse #1",
-    .deploy_version = 1,
+    .deploy_version = 2,
 
     .nn_input_frame_size = 143,
-    .raw_sample_count = 69,
+    .raw_sample_count = 64,
     .raw_samples_per_frame = 11,
-    .dsp_input_frame_size = 69 * 11,
+    .dsp_input_frame_size = 64 * 11,
     .input_width = 0,
     .input_height = 0,
     .input_frames = 0,
-    .interval_ms = 21.73913043478261,
-    .frequency = 46,
+    .interval_ms = 23.25581395348837,
+    .frequency = 43,
 
     .dsp_blocks_size = ei_dsp_blocks_958037_1_size,
     .dsp_blocks = ei_dsp_blocks_958037_1,
@@ -177,11 +177,11 @@ const ei_impulse_t impulse_958037_1 = {
 
     .sensor = EI_CLASSIFIER_SENSOR_FUSION,
     .fusion_string = "ax + ay + az + gx + gy + gz + thumb + index + middle + ring + pinky",
-    .slice_size = (69/4),
+    .slice_size = (64/4),
     .slices_per_model_window = 4,
 
     .has_anomaly = EI_ANOMALY_TYPE_UNKNOWN,
-    .label_count = 3,
+    .label_count = 6,
     .categories = ei_classifier_inferencing_categories_958037_1,
     .results_type = EI_CLASSIFIER_TYPE_CLASSIFICATION,
     .freeform_outputs_size = freeform_outputs_958037_1_size,
