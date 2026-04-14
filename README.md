@@ -1,5 +1,5 @@
-# 🧤 Project LexiGlove: AI-Edge Sign Language Translation System
-**National Science Fair 2026 | Division: Engineering & Assistive Technology**
+# 🧤 Project Neural Voice: AI-Edge Sign Language Translation System
+**National Science Fair 2026 | Division: Collage **
 
 [![Hardware: ESP32-S3](https://img.shields.io/badge/Hardware-ESP32--S3-orange?style=for-the-badge&logo=espressif)](https://www.espressif.com/)
 [![AI: Edge Impulse](https://img.shields.io/badge/AI-Edge%20Impulse-blue?style=for-the-badge)](https://www.edgeimpulse.com/)
