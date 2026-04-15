@@ -77,7 +77,7 @@ void loop() {
     else if (s1 && s2 && s3 && !s4) { manualLabel = "Doctor"; manualChar = 'D'; }
     else if (s1 && s2 && !s3 && s4) { manualLabel = "Pain"; manualChar = 'P'; }
     else if (s1 && !s2 && s3 && s4) { manualLabel = "Sleep"; manualChar = 'L'; }
-    else if (!s1 && s2 && s3 && s4) { manualLabel = "I Love You"; manualChar = 'I'; }
+    else if (!s1 && s2 && s3 && s4) { manualLabel = "Wake Up"; manualChar = 'I'; }
     else if (s1 && s2 && s3 && s4) { manualLabel = "Danger"; manualChar = 'X'; }
 
     if (manualLabel != "") {
